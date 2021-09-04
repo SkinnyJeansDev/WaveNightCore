@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 struct Sample{
     signed int data : 24;
 };
@@ -24,21 +25,22 @@ typedef struct WaveFileHeader{
   int16_t BitsPerSample;
 } WaveFileHeader;
 
-struct WaveDataChunk{
+typedef struct WaveDataChunk{
   char DataChunkID[5];
   unsigned int DataChunkLength;
-  struct Sample Samples[];
-};
+  int NumSamples;
+  struct Sample* Samples; // Pointer to an array pointer
+} WaveDataChunk;
 
 // Read In The RIFFWAVE Starting Chunk
-static struct RIFFWAVE* ReadRiffWave(struct RIFFWAVE *riffWave,FILE *filePointer)
+static void ReadRiffWave(struct RIFFWAVE *riffWave,FILE *filePointer)
 {
   fread(riffWave->Riff,4,1,filePointer); // RIFF 
   fread(&riffWave->chunkLength,4,1,filePointer); //Size Of Riff Chunk
   fread(riffWave->Wave,4,1,filePointer); //WAVE
 };
 
-static WaveFileHeader ReadWaveFileHeader(WaveFileHeader *waveFileHeader,FILE *filepointer){
+static void ReadWaveFileHeader(WaveFileHeader *waveFileHeader,FILE *filepointer){
   fread(waveFileHeader->SubChunkID,4,1,filepointer); // FMT 
   fread(&waveFileHeader->SubChunkLength,4,1,filepointer); // SubchunkSize 16  
   fread(&waveFileHeader->AudioFormat,2,1,filepointer); // Format 1
@@ -48,8 +50,31 @@ static WaveFileHeader ReadWaveFileHeader(WaveFileHeader *waveFileHeader,FILE *fi
   fread(&waveFileHeader->BlockAlign,2,1,filepointer); // BlockAlign
   fread(&waveFileHeader->BitsPerSample,2,1,filepointer); // Bits Per Sample 24
 }
+//Starts reading the next chunk of the file and skips over it in its entirety if the name is JUNK. 
+//Returns a bool indicating if it skipped ahead or not.
+static bool SkipJunkIfExists(FILE *filePointer){
+  char chunkName[5];
+  unsigned int chunkLength = 0;
 
+  fread(chunkName,4,1,filePointer);  // Likely 'JUNK'
+  if(strcmp(chunkName,"JUNK") == 0) // If the chunk is named junk ...
+  {
+    fread(&chunkLength,4,1,filePointer);  //Read in how long it is.
+    fseek(filePointer,chunkLength, SEEK_CUR); // Skip over its contents 
+    return true;
+  }
+  fseek(filePointer, -8,SEEK_CUR);// Revert the file reader's position to before we checked for junk
+  return false; 
+  
+}
 
+static void ReadWaveDataChunkHeader(WaveDataChunk *waveDataChunk, WaveFileHeader *waveFileHeader, FILE *filepointer)
+{
+  fread(waveDataChunk->DataChunkID,4,1,filepointer); // Data 'data'
+  fread(&waveDataChunk->DataChunkLength,4,1,filepointer); //Size Of Data Chunk
+  waveDataChunk->NumSamples = waveDataChunk->DataChunkLength * 8  / waveFileHeader->BitsPerSample;
+  waveDataChunk->Samples = calloc(waveDataChunk->NumSamples,sizeof(struct Sample));
+}
 int main(){
   FILE *fPointer = fopen("C:/Users/shann/Downloads/No turning back MASTER 8_15_21.wav","rb");
   FILE *outPointer = fopen("NewFile.wav","wb");
@@ -61,42 +86,13 @@ int main(){
     return 1;
   }
 
-  char junkBuffer[128]; // Used to store and then discard junk data
-  char chunkName[5]; // Should only ever be 4 char
-  unsigned int chunkLength = 0;
-  signed int bits;
-  //waveFileHeader.NumChannels = 0;
+
   ReadRiffWave(&riffWave,fPointer);
-  
-  
-
-  // In this partiuclar file there is a junk chunk
-  fread(chunkName,4,1,fPointer);  // 'JUNK'
-  if(strcmp(chunkName,"Junk")) // If the chunk is named junk ...
-  {
-    fread(&chunkLength,4,1,fPointer);  //Read in how long it is.
-    fseek(fPointer,chunkLength, SEEK_CUR);
-  }
-  else{
-    fseek(fPointer, -8,SEEK_CUR);// Pretend we didn't read in the chunk name and length 
-  }
-//  fread(&chunkLength,4,1,fPointer); // Length Of Chunk
- // fread(junkBuffer,28,1,fPointer); // Read Junk 
-  
-  // Read WaveFileHeader chunk
+  SkipJunkIfExists(fPointer);
   ReadWaveFileHeader(&waveFileHeader,fPointer);
+  //SkipJunkIfExists(fPointer);
+  ReadWaveDataChunkHeader(&waveDataChunk,&waveFileHeader,fPointer);
 
-  // Done reading WaveFileHeader chunk
-
-  // Read Wave Data Chunk
-  fread(waveDataChunk.DataChunkID,4,1,fPointer); // Data 'data'
-  fread(&waveDataChunk.DataChunkLength,4,1,fPointer); //Size Of Data Chunk
-  
-// Start reading samples 
-  // waveDataChunk.DataChunkLength * 8  / waveFileHeader.NumChannels / waveFileHeader.BitsPerSample   == NumSamples 
-  int numSamples = waveDataChunk.DataChunkLength * 8  / waveFileHeader.BitsPerSample;
-  struct Sample* samples  = calloc(numSamples,sizeof(struct Sample));
-  struct Sample dummySample = {.data=0};
   int tempField = 0;
 
   fwrite(riffWave.Riff,4,1,outPointer); // Write RIFF
@@ -113,27 +109,16 @@ int main(){
   fwrite(&waveFileHeader.BitsPerSample,2,1,outPointer); // Bits Per Sample 24
   fwrite(waveDataChunk.DataChunkID,4,1,outPointer); // Data 'data'
   fwrite(&waveDataChunk.DataChunkLength,4,1,outPointer); //Size Of Data Chunk
-  for(int i = 0 ; i < numSamples ; i++){
+  for(int i = 0 ; i < waveDataChunk.NumSamples ; i++){
     
     fread(&tempField,3,1,fPointer);
     //samples[i].data = tempField;
-    if(
-     ((i /44100) % 30 < 10) && // If Seconds 
-     ((i % 2) == 0)){ // Mute Left Audio 
-      tempField = 0;
-    }
-    else if(((i /44100) % 30 > 20 ) && //
-     ((i % 2) == 1)){ // Mute Right Audio
-      tempField = 0;
-    }
-    else{
-
-    }
+    
     waveDataChunk.Samples[i].data = tempField;
     fwrite(&tempField,3,1,outPointer);
   }
-  fread(chunkName,4,1,fPointer);
-  fread(chunkName,4,1,fPointer);
+  //fread(chunkName,4,1,fPointer);
+  //fread(chunkName,4,1,fPointer);
 
 
   
@@ -141,7 +126,7 @@ int main(){
 
   fclose(outPointer);
 
-  free(samples);
+  free(waveDataChunk.Samples);
 
 
   if(fclose(fPointer) == EOF){
