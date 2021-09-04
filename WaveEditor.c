@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+
 struct Sample{
     signed int data : 24;
 };
@@ -63,6 +64,7 @@ static bool SkipJunkIfExists(FILE *filePointer){
     fseek(filePointer,chunkLength, SEEK_CUR); // Skip over its contents 
     return true;
   }
+
   fseek(filePointer, -4,SEEK_CUR);// Revert the file reader's position to before we checked for junk
   return false; 
   
@@ -75,9 +77,32 @@ static void ReadWaveDataChunkHeader(WaveDataChunk *waveDataChunk, WaveFileHeader
   waveDataChunk->NumSamples = waveDataChunk->DataChunkLength * 8  / waveFileHeader->BitsPerSample;
   waveDataChunk->Samples = calloc(waveDataChunk->NumSamples,sizeof(struct Sample));
 }
-int main(){
-  FILE *fPointer = fopen("C:/Users/shann/Downloads/No turning back MASTER 8_15_21.wav","rb");
-  FILE *outPointer = fopen("NewFile.wav","wb");
+
+static void ReadWaveDataChunkSamples(WaveDataChunk * waveDataChunk,FILE *filePointer,FILE *outPointer)
+{
+  int tempField = 0;
+  for(int i = 0 ; i < waveDataChunk->NumSamples ; i++){
+    fread(&tempField,3,1,filePointer);    
+    waveDataChunk->Samples[i].data = tempField;
+  }
+}
+
+static void WriteWaveDataChunkSamples(WaveDataChunk * waveDataChunk,FILE *filePointer){
+  int temp;
+  for(int i = 0 ; i < waveDataChunk->NumSamples ; i++){    
+      temp = waveDataChunk->Samples[i].data;
+      //fwrite(&tempField,3,1,outPointer);
+      fwrite(&temp,3,1,filePointer);
+  }
+}
+
+int main(int argc , char * argv[]){
+  printf("The argument supplied is %s\n", argv[1]);
+  printf("The argument supplied is %s\n", argv[2]);
+
+  FILE *fPointer = fopen(argv[1],"rb");
+  FILE *outPointer = fopen(argv[2],"wb");
+  
   RIFFWAVE riffWave;
   struct WaveFileHeader waveFileHeader;
   struct WaveDataChunk waveDataChunk;
@@ -86,44 +111,32 @@ int main(){
     return 1;
   }
 
-
   ReadRiffWave(&riffWave,fPointer);
   SkipJunkIfExists(fPointer);
   ReadWaveFileHeader(&waveFileHeader,fPointer);
-  //SkipJunkIfExists(fPointer);
+  SkipJunkIfExists(fPointer);
   ReadWaveDataChunkHeader(&waveDataChunk,&waveFileHeader,fPointer);
-
+  
   int tempField = 0;
 
   fwrite(riffWave.Riff,4,1,outPointer); // Write RIFF
   fwrite(&riffWave.chunkLength,4,1,outPointer); // Write Length
   fwrite(riffWave.Wave,4,1,outPointer); // Write WAVE
 
+  unsigned int nightcoreVar = 66150; // Dumb Hack
   fwrite(waveFileHeader.SubChunkID,4,1,outPointer); // FMT 
   fwrite(&waveFileHeader.SubChunkLength,4,1,outPointer); // SubchunkSize 16  
   fwrite(&waveFileHeader.AudioFormat,2,1,outPointer); // Format 1
   fwrite(&waveFileHeader.NumChannels,2,1,outPointer); // Num Channels 2
-  fwrite(&waveFileHeader.SampleRate,4,1,outPointer); // Sample Rate 44100
+  fwrite(&nightcoreVar,4,1,outPointer); // Sample Rate 44100
   fwrite(&waveFileHeader.ByteRate,4,1,outPointer); // Byte Rate 264600
   fwrite(&waveFileHeader.BlockAlign,2,1,outPointer); // BlockAlign
   fwrite(&waveFileHeader.BitsPerSample,2,1,outPointer); // Bits Per Sample 24
   fwrite(waveDataChunk.DataChunkID,4,1,outPointer); // Data 'data'
   fwrite(&waveDataChunk.DataChunkLength,4,1,outPointer); //Size Of Data Chunk
-  for(int i = 0 ; i < waveDataChunk.NumSamples ; i++){
-    
-    fread(&tempField,3,1,fPointer);
-    //samples[i].data = tempField;
-    
-    waveDataChunk.Samples[i].data = tempField;
-    fwrite(&tempField,3,1,outPointer);
-  }
-  //fread(chunkName,4,1,fPointer);
-  //fread(chunkName,4,1,fPointer);
-
-
   
-
-
+  ReadWaveDataChunkSamples(&waveDataChunk,fPointer,outPointer);
+  WriteWaveDataChunkSamples(&waveDataChunk,outPointer);
   fclose(outPointer);
 
   free(waveDataChunk.Samples);
