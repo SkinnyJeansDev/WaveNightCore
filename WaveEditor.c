@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-
+#include <string.h>
 struct Sample{
     signed int data : 24;
 };
@@ -72,8 +72,16 @@ int main(){
 
   // In this partiuclar file there is a junk chunk
   fread(chunkName,4,1,fPointer);  // 'JUNK'
-  fread(&chunkLength,4,1,fPointer); // Length Of Chunk
-  fread(junkBuffer,28,1,fPointer); // Read Junk 
+  if(strcmp(chunkName,"Junk")) // If the chunk is named junk ...
+  {
+    fread(&chunkLength,4,1,fPointer);  //Read in how long it is.
+    fseek(fPointer,chunkLength, SEEK_CUR);
+  }
+  else{
+    fseek(fPointer, -8,SEEK_CUR);// Pretend we didn't read in the chunk name and length 
+  }
+//  fread(&chunkLength,4,1,fPointer); // Length Of Chunk
+ // fread(junkBuffer,28,1,fPointer); // Read Junk 
   
   // Read WaveFileHeader chunk
   ReadWaveFileHeader(&waveFileHeader,fPointer);
