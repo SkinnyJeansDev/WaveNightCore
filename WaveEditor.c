@@ -63,7 +63,7 @@ static bool SkipJunkIfExists(FILE *filePointer){
     fseek(filePointer,chunkLength, SEEK_CUR); // Skip over its contents 
     return true;
   }
-  fseek(filePointer, -8,SEEK_CUR);// Revert the file reader's position to before we checked for junk
+  fseek(filePointer, -4,SEEK_CUR);// Revert the file reader's position to before we checked for junk
   return false; 
   
 }
