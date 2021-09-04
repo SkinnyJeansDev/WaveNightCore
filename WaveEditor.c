@@ -6,14 +6,14 @@ struct Sample{
     signed int data : 24;
 };
 
-struct RIFFWAVE
+typedef struct RIFFWAVE
 {
   char Riff[5];
   unsigned int chunkLength;
   char Wave[5];
-};
+} RIFFWAVE;
 
-struct WaveFileHeader{
+typedef struct WaveFileHeader{
   char SubChunkID[5];
   unsigned int SubChunkLength;
   uint16_t AudioFormat;
@@ -22,7 +22,7 @@ struct WaveFileHeader{
   unsigned int ByteRate;
   int16_t BlockAlign;
   int16_t BitsPerSample;
-};
+} WaveFileHeader;
 
 struct WaveDataChunk{
   char DataChunkID[5];
@@ -30,6 +30,7 @@ struct WaveDataChunk{
   struct Sample Samples[];
 };
 
+// Read In The RIFFWAVE Starting Chunk
 static struct RIFFWAVE* ReadRiffWave(struct RIFFWAVE *riffWave,FILE *filePointer)
 {
   fread(riffWave->Riff,4,1,filePointer); // RIFF 
@@ -37,10 +38,22 @@ static struct RIFFWAVE* ReadRiffWave(struct RIFFWAVE *riffWave,FILE *filePointer
   fread(riffWave->Wave,4,1,filePointer); //WAVE
 };
 
+static WaveFileHeader ReadWaveFileHeader(WaveFileHeader *waveFileHeader,FILE *filepointer){
+  fread(waveFileHeader->SubChunkID,4,1,filepointer); // FMT 
+  fread(&waveFileHeader->SubChunkLength,4,1,filepointer); // SubchunkSize 16  
+  fread(&waveFileHeader->AudioFormat,2,1,filepointer); // Format 1
+  fread(&waveFileHeader->NumChannels,2,1,filepointer); // Num Channels 2
+  fread(&waveFileHeader->SampleRate,4,1,filepointer); // Sample Rate 44100
+  fread(&waveFileHeader->ByteRate,4,1,filepointer); // Byte Rate 264600
+  fread(&waveFileHeader->BlockAlign,2,1,filepointer); // BlockAlign
+  fread(&waveFileHeader->BitsPerSample,2,1,filepointer); // Bits Per Sample 24
+}
+
+
 int main(){
   FILE *fPointer = fopen("C:/Users/shann/Downloads/No turning back MASTER 8_15_21.wav","rb");
   FILE *outPointer = fopen("NewFile.wav","wb");
-  struct RIFFWAVE riffWave;
+  RIFFWAVE riffWave;
   struct WaveFileHeader waveFileHeader;
   struct WaveDataChunk waveDataChunk;
   if(fPointer == NULL){
@@ -53,11 +66,8 @@ int main(){
   unsigned int chunkLength = 0;
   signed int bits;
   //waveFileHeader.NumChannels = 0;
-  // Read in RIFFWAVE
   ReadRiffWave(&riffWave,fPointer);
-  //fread(riffWave.Riff,4,1,fPointer); // RIFF 
-  //fread(&riffWave.chunkLength,4,1,fPointer); //Size Of Riff Chunk
-  //fread(riffWave.Wave,4,1,fPointer); //WAVE
+  
   
 
   // In this partiuclar file there is a junk chunk
@@ -66,14 +76,7 @@ int main(){
   fread(junkBuffer,28,1,fPointer); // Read Junk 
   
   // Read WaveFileHeader chunk
-  fread(waveFileHeader.SubChunkID,4,1,fPointer); // FMT 
-  fread(&waveFileHeader.SubChunkLength,4,1,fPointer); // SubchunkSize 16  
-  fread(&waveFileHeader.AudioFormat,2,1,fPointer); // Format 1
-  fread(&waveFileHeader.NumChannels,2,1,fPointer); // Num Channels 2
-  fread(&waveFileHeader.SampleRate,4,1,fPointer); // Sample Rate 44100
-  fread(&waveFileHeader.ByteRate,4,1,fPointer); // Byte Rate 264600
-  fread(&waveFileHeader.BlockAlign,2,1,fPointer); // BlockAlign
-  fread(&waveFileHeader.BitsPerSample,2,1,fPointer); // Bits Per Sample 24
+  ReadWaveFileHeader(&waveFileHeader,fPointer);
 
   // Done reading WaveFileHeader chunk
 
