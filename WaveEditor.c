@@ -34,7 +34,7 @@ int main(int argc , char * argv[]){
   WriteRiffWave(&riffWave,outPointer);
   WriteWaveFileHeader(&waveFileHeader,outPointer);
   WriteWaveDataChunkHeader(&waveDataChunk,outPointer);
-  WriteWaveDataChunkSamples(&waveDataChunk,outPointer);
+  WriteWaveDataChunkSamples(&waveDataChunk,&waveFileHeader,outPointer);
   fclose(outPointer);
 
 

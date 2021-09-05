@@ -56,7 +56,7 @@ static void ReadWaveDataChunkHeader(WaveDataChunk *waveDataChunk, WaveFileHeader
 static void ReadWaveDataChunkSamples(WaveDataChunk * waveDataChunk,WaveFileHeader *waveFileHeader,FILE *filePointer)
 {
   int tempField = 0;
-  int sizeOfSampleInBytes = waveFileHeader->BlockAlign / waveFileHeader->NumChannels; // Should always be an integer in a valid wave file
+  int sizeOfSampleInBytes = waveFileHeader->BitsPerSample / 8; // Should always be an integer in a valid wave file
 
   // I could invert the for and conditionals (if,if else) to be more performant but this is more readable for now...
   for(int i = 0 ; i < waveDataChunk->NumSamples ; i++){
@@ -106,11 +106,24 @@ static void WriteWaveDataChunkHeader(WaveDataChunk* waveDataChunk, FILE* outPoin
 
 }
 
-static void WriteWaveDataChunkSamples(WaveDataChunk * waveDataChunk,FILE *filePointer){
+static void WriteWaveDataChunkSamples(WaveDataChunk *waveDataChunk,WaveFileHeader *waveFileHeader,FILE *filePointer){
   int temp;
-  for(int i = 0 ; i < waveDataChunk->NumSamples ; i++){    
+  int sizeOfSampleInBytes = waveFileHeader->BitsPerSample / 8;
+  for(int i = 0 ; i < waveDataChunk->NumSamples ; i++){
+    if(sizeOfSampleInBytes == 3)
+    {
       temp = waveDataChunk->Samples[i].Data24Bit;
-      //fwrite(&tempField,3,1,outPointer);
-      fwrite(&temp,3,1,filePointer);
+    }
+    else if(sizeOfSampleInBytes == 2)
+    {
+      temp = waveDataChunk->Samples[i].Data16Bit;
+    }
+    
+    else if(sizeOfSampleInBytes == 1)
+    {
+      temp = waveDataChunk->Samples[i].Data8Bit;
+    }
+    fwrite(&temp,sizeOfSampleInBytes,1,filePointer);
+      
   }
 }
