@@ -4,8 +4,11 @@
 #include <string.h>
 #include <stdbool.h>
 
-struct Sample{
-    signed int data : 24;
+union Sample{
+  // I CAN USE A UNION WOW AMAZING
+    signed int Data24Bit : 24;
+    signed short Data16Bit;
+    uint8_t Data8Bit;
 };
 
 typedef struct RIFFWAVE
@@ -30,5 +33,5 @@ typedef struct WaveDataChunk{
   char DataChunkID[5];
   unsigned int DataChunkLength;
   int NumSamples;
-  struct Sample* Samples; // Pointer to an array pointer
+  union Sample* Samples; // Pointer to an array pointer
 } WaveDataChunk;
