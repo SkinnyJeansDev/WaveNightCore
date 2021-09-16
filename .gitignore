@@ -2,3 +2,4 @@
 *.wav
 typeSize.c
 *.exe
+*.o

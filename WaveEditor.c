@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "WaveIO.h"
-
+#include "lib/WaveIO.h"
+//
 int main(int argc , char * argv[]){
   printf("The argument supplied is %s\n", argv[1]);
   printf("The argument supplied is %s\n", argv[2]);
@@ -28,7 +28,12 @@ int main(int argc , char * argv[]){
   ReadWaveDataChunkSamples(&waveDataChunk,&waveFileHeader,fPointer);
 
   // Edits to the original sound file
-  waveFileHeader.SampleRate = 66150; // Dumb Hack To Make Music Sound Like Nightcore
+  waveFileHeader.SampleRate = 1.4 * waveFileHeader.SampleRate; // Dumb Hack To Make Music Sound Like Nightcore
+  for (int i = 0; i < waveDataChunk.NumSamples; i++)
+  {
+    waveDataChunk.Samples[i].Data24Bit = waveDataChunk.Samples[i].Data24Bit / 10;
+  }
+  
   // Stop Edits 
 
   WriteRiffWave(&riffWave,outPointer);

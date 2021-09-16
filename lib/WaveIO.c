@@ -1,22 +1,17 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-#include "WaveDataStructs.h"
+#include "WaveIO.h"
 
 
 //READ
 
 // Read In The RIFFWAVE Starting Chunk
-static void ReadRiffWave(struct RIFFWAVE *riffWave,FILE *filePointer)
+void ReadRiffWave(struct RIFFWAVE *riffWave,FILE *filePointer)
 {
   fread(riffWave->Riff,4,1,filePointer); // RIFF 
   fread(&riffWave->chunkLength,4,1,filePointer); //Size Of Riff Chunk
   fread(riffWave->Wave,4,1,filePointer); //WAVE
 };
 
-static void ReadWaveFileHeader(WaveFileHeader *waveFileHeader,FILE *filepointer){
+void ReadWaveFileHeader(WaveFileHeader *waveFileHeader,FILE *filepointer){
   fread(waveFileHeader->SubChunkID,4,1,filepointer); // FMT 
   fread(&waveFileHeader->SubChunkLength,4,1,filepointer); // SubchunkSize 16  
   fread(&waveFileHeader->AudioFormat,2,1,filepointer); // Format 1
@@ -28,7 +23,7 @@ static void ReadWaveFileHeader(WaveFileHeader *waveFileHeader,FILE *filepointer)
 }
 //Starts reading the next chunk of the file and skips over it in its entirety if the name is JUNK. 
 //Returns a bool indicating if it skipped ahead or not.
-static bool SkipJunkIfExists(FILE *filePointer){
+bool SkipJunkIfExists(FILE *filePointer){
   char chunkName[5];
   unsigned int chunkLength = 0;
 
@@ -45,7 +40,7 @@ static bool SkipJunkIfExists(FILE *filePointer){
   
 }
 
-static void ReadWaveDataChunkHeader(WaveDataChunk *waveDataChunk, WaveFileHeader *waveFileHeader, FILE *filepointer)
+void ReadWaveDataChunkHeader(WaveDataChunk *waveDataChunk, WaveFileHeader *waveFileHeader, FILE *filepointer)
 {
   fread(waveDataChunk->DataChunkID,4,1,filepointer); // Data 'data'
   fread(&waveDataChunk->DataChunkLength,4,1,filepointer); //Size Of Data Chunk
@@ -53,7 +48,7 @@ static void ReadWaveDataChunkHeader(WaveDataChunk *waveDataChunk, WaveFileHeader
   waveDataChunk->Samples = calloc(waveDataChunk->NumSamples,sizeof(union Sample));
 }
 
-static void ReadWaveDataChunkSamples(WaveDataChunk * waveDataChunk,WaveFileHeader *waveFileHeader,FILE *filePointer)
+void ReadWaveDataChunkSamples(WaveDataChunk * waveDataChunk,WaveFileHeader *waveFileHeader,FILE *filePointer)
 {
   int tempField = 0;
   int sizeOfSampleInBytes = waveFileHeader->BitsPerSample / 8; // Should always be an integer in a valid wave file
@@ -82,13 +77,13 @@ static void ReadWaveDataChunkSamples(WaveDataChunk * waveDataChunk,WaveFileHeade
 // WRITE
 
 
-static void WriteRiffWave(RIFFWAVE* riffWave, FILE* outPointer){
+void WriteRiffWave(RIFFWAVE* riffWave, FILE* outPointer){
   fwrite(riffWave->Riff,4,1,outPointer); // Write RIFF
   fwrite(&riffWave->chunkLength,4,1,outPointer); // Write Length
   fwrite(riffWave->Wave,4,1,outPointer); // Write WAVE
 }
 
-static void WriteWaveFileHeader(WaveFileHeader* waveFileHeader, FILE* outPointer)
+void WriteWaveFileHeader(WaveFileHeader* waveFileHeader, FILE* outPointer)
 {
   fwrite(waveFileHeader->SubChunkID,4,1,outPointer); // FMT 
   fwrite(&waveFileHeader->SubChunkLength,4,1,outPointer); // SubchunkSize 16  
@@ -100,13 +95,13 @@ static void WriteWaveFileHeader(WaveFileHeader* waveFileHeader, FILE* outPointer
   fwrite(&waveFileHeader->BitsPerSample,2,1,outPointer); // Bits Per Sample 24
 }
 
-static void WriteWaveDataChunkHeader(WaveDataChunk* waveDataChunk, FILE* outPointer){
+void WriteWaveDataChunkHeader(WaveDataChunk* waveDataChunk, FILE* outPointer){
   fwrite(waveDataChunk->DataChunkID,4,1,outPointer); // Data 'data'
   fwrite(&waveDataChunk->DataChunkLength,4,1,outPointer); //Size Of Data Chunk
 
 }
 
-static void WriteWaveDataChunkSamples(WaveDataChunk *waveDataChunk,WaveFileHeader *waveFileHeader,FILE *filePointer){
+void WriteWaveDataChunkSamples(WaveDataChunk *waveDataChunk,WaveFileHeader *waveFileHeader,FILE *filePointer){
   int temp;
   int sizeOfSampleInBytes = waveFileHeader->BitsPerSample / 8;
   for(int i = 0 ; i < waveDataChunk->NumSamples ; i++){
